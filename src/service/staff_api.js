@@ -5,7 +5,11 @@ const url = api + basePath;
 
 export const GetStaff = async (filter = "", limit = 10) => {
   try {
-    const query = `?limit=${limit}&filter=${filter}`;
+    let query = `?limit=${limit}`;
+
+    if (filter && filter.trim() !== "") {
+      query += `&filter=${encodeURIComponent(filter)}`;
+    }
 
     const response = await fetch(url + query, {
       method: "GET",

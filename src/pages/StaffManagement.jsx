@@ -1,16 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
-import {
-  Plus,
-  Upload,
-  FileSpreadsheet,
-  Edit,
-  Trash2,
-  Filter,
-  Crown,
-} from "lucide-react"
+import { Plus,Upload,FileSpreadsheet,Edit,Trash2,Filter,Crown, } from "lucide-react"
 
 import Button from "@/components/Button"
-import Badge from "@/components/Badge"
 import Tabs from "@/components/Tabs"
 import Dropdown from "@/components/Dropdown"
 import SearchInput from "@/components/SearchInput"
@@ -19,19 +10,16 @@ import Pagination from "@/components/Pagination"
 import Modal from "@/components/Modal"
 import StaffForm from "@/components/StaffForm"
 
-// 🔥 API
-import { GetStaff, AddStaff, UpdateStaff, DeleteStaff } from "../service/staff_api"
+import { GetStaff,AddStaff,UpdateStaff,DeleteStaff,} from "../service/staff_api"
 import { GetRole } from "../service/role_api"
 import { GetDepartement } from "../service/dept_api"
+import { GetStatus } from "../service/status_api"
 
 const StaffManagement = () => {
-  // ===============================
-  // STATES
-  // ===============================
   const [activeTab, setActiveTab] = useState("active")
   const [searchQuery, setSearchQuery] = useState("")
-  const [divisionFilter, setDivisionFilter] = useState("all")
-  const [positionFilter, setPositionFilter] = useState("all")
+  const [roleFilter, setRoleFilter] = useState("all")
+  const [locationFilter, setLocationFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -43,11 +31,9 @@ const StaffManagement = () => {
   const [staffData, setStaffData] = useState([])
   const [roles, setRoles] = useState([])
   const [locations, setLocations] = useState([])
+  const [statuses, setStatuses] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // ===============================
-  // FETCH STAFF
-  // ===============================
   const fetchStaff = async () => {
     try {
       setLoading(true)
@@ -60,115 +46,107 @@ const StaffManagement = () => {
     }
   }
 
-  // ===============================
-  // FETCH ROLES (JABATAN)
-  // ===============================
   const fetchRoles = async () => {
     try {
       const res = await GetRole("", 100)
-
       const activeRoles = (res.data || []).filter(
-        (r) => r.deleted_at === null
+        (r) => r.deleted_at.Valid === false
       )
-
       setRoles(activeRoles)
     } catch (err) {
       console.error("gagal fetch roles:", err)
     }
   }
 
-  // ===============================
-  // FETCH LOCATIONS (DIVISION)
-  // ===============================
   const fetchLocations = async () => {
     try {
       const res = await GetDepartement("", 100)
-
       const activeLocations = (res.data || []).filter(
-        (l) => l.deleted_at === null
+        (l) => l.deleted_at.Valid === false
       )
-
       setLocations(activeLocations)
     } catch (err) {
       console.error("gagal fetch location:", err)
     }
   }
 
-  // ===============================
-  // EFFECT INIT
-  // ===============================
+  const fetchStatus = async () => {
+    try {
+      const res = await GetStatus()
+      setStatuses(res.data )
+      console.log(res.data,"")
+    } catch (err) {
+      console.error("gagal fetch status:", err)
+    }
+  }
+
   useEffect(() => {
     fetchStaff()
     fetchRoles()
     fetchLocations()
+    fetchStatus()
   }, [activeTab, itemsPerPage])
 
-  // reset page when filter berubah
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, divisionFilter, positionFilter, statusFilter])
+  }, [searchQuery, roleFilter, locationFilter, statusFilter])
 
-  // ===============================
-  // OPTIONS (REALTIME 🔥)
-  // ===============================
   const tabs = [
     { id: "active", label: "Staff Aktif" },
     { id: "inactive", label: "Staff Tidak Aktif" },
   ]
 
-  const divisionOptions = useMemo(() => {
+  const roleOptions = useMemo(() => {
     return [
       { label: "Semua Role", value: "all" },
-      ...locations.map((loc) => ({
-        label: loc.name || loc.location || `Location ${loc.id}`,
-        value: loc.id,
-      })),
-    ]
-  }, [locations])
-
-  const positionOptions = useMemo(() => {
-    return [
-      { label: "Semua Jabatan", value: "all" },
       ...roles.map((role) => ({
         label: role.role,
-        value: role.id,
+        value: String(role.id),
       })),
     ]
   }, [roles])
 
-  const statusOptions = [
-    { label: "Semua Status", value: "all" },
-    { label: "Tetap", value: "Tetap" },
-    { label: "Kontrak", value: "Kontrak" },
-    { label: "Magang", value: "Magang" },
+  const locationOptions = useMemo(() => {
+  return [
+    { label: "Semua Location", value: "all" },
+    ...locations.map((loc) => ({
+      label: loc.name || loc.location || `Location ${loc.id}`,
+      value: String(loc.id),
+    })),
   ]
+}, [locations])
 
-  // ===============================
-  // FILTER DATA
-  // ===============================
+  const statusOptions = useMemo(() => {
+    return [
+      { label: "Semua Status", value: "all" },
+      ...statuses.map((s) => ({
+        label: s.nama_status,
+        value: s.id,
+      })),
+    ];
+  }, [statuses]);
+
+
   const filteredData = staffData.filter((staff) => {
     const matchSearch =
       staff.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       staff.email?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchDivision =
-      divisionFilter === "all" ||
-      staff.location_id === divisionFilter ||
-      staff.division_id === divisionFilter
+    const matchRole =
+      roleFilter === "all" ||
+      Number(staff.role_id) === Number(roleFilter)
 
-    const matchPosition =
-      positionFilter === "all" ||
-      staff.role_id === positionFilter
+    const matchLocation =
+      locationFilter === "all" ||
+      Number(staff.location_id) === Number(locationFilter)
 
     const matchStatus =
-      statusFilter === "all" || staff.status === statusFilter
+      statusFilter === "all" ||
+      Number(staff.status_id) === Number(statusFilter)
 
-    return matchSearch && matchDivision && matchPosition && matchStatus
+    return matchSearch && matchRole && matchLocation && matchStatus
   })
 
-  // ===============================
-  // PAGINATION
-  // ===============================
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
 
   const paginatedData = filteredData.slice(
@@ -176,9 +154,6 @@ const StaffManagement = () => {
     currentPage * itemsPerPage
   )
 
-  // ===============================
-  // TABLE COLUMNS
-  // ===============================
   const columns = [
     {
       header: "Nama",
@@ -192,38 +167,30 @@ const StaffManagement = () => {
         </div>
       ),
     },
-    { header: "Divisi", accessor: "division" },
-    { header: "Jabatan", accessor: "position" },
+    { header: "NIK", accessor: "nik" },
+    { header: "Email", accessor: "email" },
+    { header: "Phone", accessor: "phone" },
+    { header: "Role", accessor: "role" },
+    { header: "Location", accessor: "location" },
+    { header: "Status Staff", accessor: "status"},
     {
-      header: "Status Staff",
-      accessor: "status",
-      render: (row) => (
-        <Badge
-          variant={
-            row.status === "Tetap"
-              ? "success"
-              : row.status === "Kontrak"
-              ? "warning"
-              : "info"
-          }
-        >
-          {row.status}
-        </Badge>
-      ),
+      header: "Gaji",
+      accessor: "salary",
+      render: (row) => {
+        if (row.salary === null || row.salary === undefined) return "-";
+        return new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          maximumFractionDigits: 0,
+        }).format(row.salary);
+      },
     },
-    {
-      header: "Tgl Masuk",
-      accessor: "joinDate",
-      render: (row) =>
-        row.joinDate
-          ? new Date(row.joinDate).toLocaleDateString("id-ID")
-          : "-",
-    },
-  ]
+    { header: "Tanggal Masuk", accessor: "created_at",render: (row) =>
+    row.created_at
+      ? new Date(row.created_at).toLocaleDateString("id-ID")
+      : "-",},
+  ];
 
-  // ===============================
-  // HANDLERS
-  // ===============================
   const handleAddStaff = async (formData) => {
     try {
       await AddStaff(formData)
@@ -264,12 +231,8 @@ const StaffManagement = () => {
     setIsEditModalOpen(true)
   }
 
-  // ===============================
-  // RENDER
-  // ===============================
   return (
     <div className="space-y-6">
-      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
@@ -289,7 +252,11 @@ const StaffManagement = () => {
             Edit Data Excel
           </Button>
 
-          <Button variant="primary" icon={Plus} onClick={() => setIsAddModalOpen(true)}>
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={() => setIsAddModalOpen(true)}
+          >
             Tambah Staff
           </Button>
         </div>
@@ -297,7 +264,6 @@ const StaffManagement = () => {
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* FILTER */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Filter size={18} className="text-slate-500" />
@@ -305,66 +271,33 @@ const StaffManagement = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Dropdown
-            icon={Filter}
-            options={divisionOptions}
-            value={divisionFilter}
-            onChange={setDivisionFilter}
-          />
-
-          <Dropdown
-            icon={Filter}
-            options={positionOptions}
-            value={positionFilter}
-            onChange={setPositionFilter}
-          />
-
-          <Dropdown
-            icon={Filter}
-            options={statusOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Cari nama/email/kode staff"
-          />
+          <Dropdown icon={Filter} options={roleOptions} value={roleFilter} onChange={setRoleFilter} />
+          <Dropdown icon={Filter} options={locationOptions} value={locationFilter} onChange={setLocationFilter} />
+          <Dropdown icon={Filter} options={statusOptions} value={statusFilter} onChange={setStatusFilter} />
+          <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Cari nama/email/kode staff" />
         </div>
       </div>
 
-      {/* TABLE */}
       <Table
         columns={columns}
         data={paginatedData}
         loading={loading}
         actions={(row) => (
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Edit}
-              onClick={() => openEditModal(row)}
-            >
-              Edit
-            </Button>
-
+            <Button variant="ghost" size="sm" icon={Edit} title="Edit" onClick={() => openEditModal(row)}/>
+            
             <Button
               variant="ghost"
               size="sm"
               icon={Trash2}
+              title="Hapus"
               className="text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={() => handleDeleteStaff(row.id)}
-            >
-              Hapus
-            </Button>
+              onClick={() => handleDeleteStaff(row.id)}/>
           </>
         )}
         emptyMessage="Tidak ada data staff"
       />
 
-      {/* PAGINATION */}
       {filteredData.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -379,7 +312,6 @@ const StaffManagement = () => {
         />
       )}
 
-      {/* ADD MODAL */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -388,13 +320,14 @@ const StaffManagement = () => {
       >
         <StaffForm
           roles={roles}
+          statuses={statuses}
           locations={locations}
+          status={statuses}
           onSubmit={handleAddStaff}
           onCancel={() => setIsAddModalOpen(false)}
         />
       </Modal>
 
-      {/* EDIT MODAL */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -408,6 +341,7 @@ const StaffManagement = () => {
           staff={selectedStaff}
           roles={roles}
           locations={locations}
+          status={statuses}
           onSubmit={handleUpdateStaff}
           onCancel={() => {
             setIsEditModalOpen(false)

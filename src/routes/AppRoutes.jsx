@@ -1,18 +1,17 @@
 import React, { lazy } from 'react'
 import { Routes,Route } from 'react-router-dom'
-// import Karyawan from '../pages/Karyawan'
-import StaffManagement from '../pages/StaffManagement'
-import DepartmentManagement from '../pages/DepartementManagement'
-import Attendance from '../pages/Attendance'
-import Dashboard from '../pages/Dashboard'
-import PayrollManagement from '../pages/PayrollMabagement'
-import Role from '../pages/Role'
 
-const Karyawan = lazy('../pages/Karyawan')
+const Karyawan = lazy(() => import('../pages/Karyawan'))
+const StaffManagement = lazy(() => import('../pages/StaffManagement'))
+const DepartmentManagement = lazy(() => import('../pages/DepartementManagement'))
+const Attendance = lazy(() => import('../pages/Attendance'))
+const Dashboard = lazy(() => import('../pages/Dashboard'))
+const PayrollManagement = lazy(()=> import('../pages/PayrollManagement'))
+const Role = lazy(()=> import('../pages/Role'))
 
 function AppRoutes() {
   return (
-    <Routes path={"/hrd"}>
+    <Routes>
         <Route element={<Karyawan/>} path='/'/>
         <Route element={<Dashboard/>} path='/dashboard'/>
         <Route element={<StaffManagement/>} path='/staf'/>

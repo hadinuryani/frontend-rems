@@ -1,14 +1,14 @@
 import { useState } from "react"
 import Button from "@/components/Button"
 
-const StaffForm = ({ staff, roles = [], locations = [], onSubmit, onCancel }) => {
+const StaffForm = ({ staff, roles = [], locations = [],status = [], onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     name: staff?.name || "",
     email: staff?.email || "",
     phone: staff?.phone || "",
     role_id: staff?.role_id || "",
     location_id: staff?.location_id || "",
-    status: staff?.status === "Tetap" ? 1 : 0,
+    status: staff?.status_id || "",
     address: staff?.address || "",
     salary: staff?.salary || 0,
   })
@@ -16,10 +16,8 @@ const StaffForm = ({ staff, roles = [], locations = [], onSubmit, onCancel }) =>
   const handleChange = (e) => {
     const { name, value } = e.target
     
-    if (name === "status") {
-      setFormData((prev) => ({ ...prev, [name]: value === "1" ? 1 : 0 }))
-    } else if (name === "role_id" || name === "location_id" || name === "salary") {
-      setFormData((prev) => ({ ...prev, [name]: parseInt(value) || value }))
+    if (name === "role_id" || name === "location_id" || name === "status" || name === "salary") {
+      setFormData((prev) => ({ ...prev, [name]: value ? parseInt(value) : "" }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -84,7 +82,7 @@ const StaffForm = ({ staff, roles = [], locations = [], onSubmit, onCancel }) =>
         {/* Location/Department */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Departemen <span className="text-red-500">*</span>
+            Location <span className="text-red-500">*</span>
           </label>
           <select
             name="location_id"
@@ -130,32 +128,21 @@ const StaffForm = ({ staff, roles = [], locations = [], onSubmit, onCancel }) =>
           </label>
           <select
             name="status"
-            value={formData.status ? "1" : "0"}
+            value={formData.status || ""}
             onChange={handleChange}
             required
             className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
           >
-            <option value="1">Tetap</option>
-            <option value="0">Kontrak</option>
+            <option value="">Pilih Status</option>
+            {status.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nama_status}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Salary */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Gaji Pokok <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            name="salary"
-            value={formData.salary}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-            placeholder="0"
-          />
-        </div>
-
+        
         {/* Address - Full width */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-700 mb-1.5">

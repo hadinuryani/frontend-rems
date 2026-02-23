@@ -3,7 +3,7 @@ import React from 'react'
 function Karyawan() {
   return (
     <div>
-    <p className=''>Rakyat Jelata</p>  
+    <p className='bg-red-500'>Rakyat Jelata</p>  
     </div>
   )
 }

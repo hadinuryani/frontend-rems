@@ -15,10 +15,10 @@ export default function Sidebar({ open, setOpen, collapsed, setCollapsed }){
 
   const menus = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-    { name: "Management Staf", icon: Users, path: "/staf" },
-    { name: "Departements", icon: Building2, path: "/departement" },
-    { name: "Roles", icon: KeyRound, path: "/roles" },
     { name: "Attendance", icon: ClipboardList, path: "/attendance" },
+    { name: "Location", icon: Building2, path: "/departement" },
+    { name: "Employee", icon: Users, path: "/staf" },
+    { name: "Roles", icon: KeyRound, path: "/roles" },
     { name: "Payroll", icon: HandCoins, path: "/payroll" },
   ]
 
