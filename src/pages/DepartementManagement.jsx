@@ -1,16 +1,19 @@
 import {useState,useEffect } from "react";
-import {Plus, Leaf, Trash2, Users } from "lucide-react";
+import {Plus, Leaf, Trash2, Users,Filter } from "lucide-react";
 import {Button,Badge,Tabs,SearchInput,Table,Pagination,Modal,} from "@/components";
+import Dropdown from "@/components/Dropdown"
 import {AddDepartement,GetDepartement,DeleteDepartement,ActiveDepartement } from "../service/dept_api"
 
 const DepartmentManagement = () => {
   const [activeTab, setActiveTab] = useState("active");
   const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortFilter, setSortFilter] = useState("none");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [departments,setDepartements] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(()=>{
     handleGetDepartement()
@@ -24,13 +27,22 @@ const DepartmentManagement = () => {
   const filteredData = departments
   .filter((dept) => {
     if (activeTab === "active") {
-      return dept.status === "Aktif";
+      return dept.status === "active";
     }
-    return dept.status === "Tidak Aktif";
+    return dept.status === "inactive";
   })
   .filter((dept) =>
     dept.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  )
+  .filter((dept) => {
+    if (typeFilter === "all") return true;
+    return dept.type === typeFilter;
+  })
+  .sort((a, b) => {
+    if (sortFilter === "most") return b.staffCount - a.staffCount;
+    if (sortFilter === "least") return a.staffCount - b.staffCount;
+    return 0;
+  });
 
   const paginatedData = filteredData.slice(
     (currentPage - 1) * itemsPerPage,
@@ -38,9 +50,9 @@ const DepartmentManagement = () => {
   );
 
   const columns = [
-    { header: "Nama Departemen", accessor: "name" },
+    { header: "Departemen", accessor: "name" },
     { header: "Tempat Berkerja", accessor: "type" },
-    { header: "Location", accessor: "address" },
+    { header: "Alamat", accessor: "address" },
     {
       header: "Jumlah Staff",
       accessor: "staffCount",
@@ -55,8 +67,8 @@ const DepartmentManagement = () => {
       header: "Status",
       accessor: "status",
       render: (row) => (
-        <Badge variant={row.status === "Aktif" ? "success" : "danger"}>
-          {row.status}
+        <Badge variant={row.status === "active" ? "success" : "danger"}>
+          {row.status === "active" ? "Aktif" : "Tidak Aktif"}
         </Badge>
       ),
     },
@@ -92,16 +104,16 @@ const DepartmentManagement = () => {
       const response = await GetDepartement(filterValue, 10);
 
       if (response.success){
-        const formatedData = response.data.map((item)=>({
-          id : item.id,
-          name : item.name,
-          type : item.type,
-          address : item.address,
-          staffCount : item.amount,
-          status: item.deleted_at ? "Tidak Aktif" : "Aktif",
+        const formatedData = response.data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          address: item.address,
+          staffCount: item.amount,
+          status: item.deleted_at.Valid ? "inactive" : "active",
         }));
 
-        setDepartements(formatedData);
+        setDepartments(formatedData);
       }
     }catch(error){
       console.log(error)
@@ -127,9 +139,9 @@ const DepartmentManagement = () => {
           type : response.data.type,
           address: response.data.address,
           staffCount : 0,
-          status : "Aktif",
+          status : "active",
         };
-        setDepartements((prev)=>[...prev,newDept])
+        setDepartments((prev)=>[...prev,newDept])
       }
 
       alert("Departemen berhasil ditambahkan");
@@ -158,7 +170,7 @@ const DepartmentManagement = () => {
 
       if (response.success){
         // hapus data dari state tanpa fetch ulang
-        setDepartements((prev) => prev.filter((dept) => dept.id !== id));
+        setDepartments((prev) => prev.filter((dept) => dept.id !== id));
         alert("Departement berhasil di hapus");
       }
     }catch(error){
@@ -211,6 +223,37 @@ const DepartmentManagement = () => {
       {/* Tabs */}
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
+      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter size={18} className="text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-700">Filter</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Dropdown
+            label="Tipe Lokasi"
+            options={[
+              { label: "Semua", value: "all" },
+              { label: "Store", value: "store" },
+              { label: "Office", value: "office" },
+              { label: "Warehouse", value: "warehouse" },
+            ]}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
+          <Dropdown
+            label="Urutan Staff"
+            options={[
+              { label: "Tidak Ada", value: "none" },
+              { label: "Terbanyak ke Sedikit", value: "most" },
+              { label: "Sedikit ke Terbanyak", value: "least" },
+            ]}
+            value={sortFilter}
+            onChange={setSortFilter}
+          />
+        </div>
+      </div>
+
       {/* Search */}
       <div className="flex items-center justify-between gap-4">
         <SearchInput
@@ -229,16 +272,15 @@ const DepartmentManagement = () => {
         columns={columns}
         data={paginatedData}
         actions={(row) => {
-          if (row.status === "Aktif"){
+          if (row.status === "active") {
             return (
               <Button
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
+                title="Hapus"
                 className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                onClick={() => handleDeleteDepartment(row.id)}>
-                Hapus
-              </Button>
+                onClick={() => handleDeleteDepartment(row.id)} />
             );
           }
           return (
@@ -246,10 +288,9 @@ const DepartmentManagement = () => {
               variant="ghost"
               size="sm"
               icon={Leaf}
+              title="Aktifkan"
               className="text-green-600 hover:text-green-700 hover:bg-green-50"
-              onClick={() => handleActivateDepartment(row.id)}>
-              Aktifkan
-            </Button>
+              onClick={() => handleActivateDepartment(row.id)} />
           );
         }}
         emptyMessage="Tidak ada departemen"
