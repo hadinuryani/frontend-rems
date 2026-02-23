@@ -9,7 +9,8 @@ import {
   Table,
   Pagination,
 } from "@/components"
-import { GetStaff } from "@/service/staff_api"
+import { GetAttendanceRecords } from "@/service/attendance_api"
+import { GetDepartement } from "@/service/dept_api"
 
 const Attendance = () => {
   const [activeTab, setActiveTab] = useState("today")
@@ -18,88 +19,62 @@ const Attendance = () => {
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [loading, setLoading] = useState(false)
-
-  // States for real data
-  const [staffData, setStaffData] = useState([])
+  const [departments, setDepartments] = useState([])
   const [attendanceData, setAttendanceData] = useState([])
 
-  // Fetch staff data and generate attendance records
+  // Fetch departments once on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDepartments = async () => {
       try {
-        setLoading(true)
-        const res = await GetStaff("", 100)
-        if (res.success && res.data) {
-          setStaffData(res.data)
-          // Generate sample attendance records from staff data
-          const records = res.data.map((staff) => ({
-            id: staff.id,
-            name: staff.name,
-            department: staff.division,
-            checkIn: Math.random() > 0.2 ? generateTime("08:00", "09:00") : "-",
-            checkOut: Math.random() > 0.2 ? generateTime("17:00", "18:00") : "-",
-            status: generateAttendanceStatus(),
-            date: new Date().toISOString().split("T")[0],
-          }))
-          setAttendanceData(records)
+        const deptRes = await GetDepartement("", 100).catch(err => ({ success: false, error: err }))
+        if (deptRes.success && deptRes.data) {
+          setDepartments(deptRes.data)
         }
       } catch (error) {
-        console.error("Error fetching staff data:", error)
-        // Fallback to sample data if API fails
-        setSampleAttendanceData()
-      } finally {
-        setLoading(false)
+        console.error("Error fetching departments:", error)
+      }
+    }
+    fetchDepartments()
+  }, [])
+
+  // Fetch attendance records when activeTab or filters change
+  useEffect(() => {
+    const getDateForTab = () => {
+      const today = new Date()
+      switch (activeTab) {
+        case "today":
+          return today.toISOString().split("T")[0]
+        case "week":
+          return null
+        case "month":
+          return null
+        default:
+          return today.toISOString().split("T")[0]
       }
     }
 
-    fetchData()
-  }, [])
+    const fetchAttendance = async () => {
+      try {
+        const date = getDateForTab()
+        const attendanceRes = await GetAttendanceRecords(
+          date || "",
+          departmentFilter,
+          statusFilter,
+          100
+        ).catch(err => ({ success: false, error: err }))
 
-  const generateTime = (startTime, endTime) => {
-    const [startHour, startMin] = startTime.split(":").map(Number)
-    const [endHour, endMin] = endTime.split(":").map(Number)
-    const randomHour = startHour + Math.floor(Math.random() * (endHour - startHour))
-    const randomMin = Math.floor(Math.random() * 60)
-    return `${String(randomHour).padStart(2, "0")}:${String(randomMin).padStart(2, "0")}`
-  }
-
-  const generateAttendanceStatus = () => {
-    const statuses = ["Hadir", "Hadir", "Hadir", "Terlambat", "Izin", "Sakit"]
-    return statuses[Math.floor(Math.random() * statuses.length)]
-  }
-
-  const setSampleAttendanceData = () => {
-    setAttendanceData([
-      {
-        id: 1,
-        name: "Dina Darius",
-        department: "Produksi",
-        checkIn: "08:00",
-        checkOut: "17:00",
-        status: "Hadir",
-        date: new Date().toISOString().split("T")[0],
-      },
-      {
-        id: 2,
-        name: "Alfina Amalia",
-        department: "Marketing",
-        checkIn: "08:15",
-        checkOut: "17:30",
-        status: "Terlambat",
-        date: new Date().toISOString().split("T")[0],
-      },
-      {
-        id: 3,
-        name: "Suhada Akbra",
-        department: "IT",
-        checkIn: "-",
-        checkOut: "-",
-        status: "Izin",
-        date: new Date().toISOString().split("T")[0],
-      },
-    ])
-  }
+        if (attendanceRes.success && Array.isArray(attendanceRes.data)) {
+          setAttendanceData(attendanceRes.data)
+        } else {
+          setAttendanceData([])
+        }
+      } catch (error) {
+        console.error("Error fetching attendance:", error)
+        setAttendanceData([])
+      }
+    }
+    fetchAttendance()
+  }, [activeTab, departmentFilter, statusFilter])
 
   const tabs = [
     { label: "Hari Ini", value: "today" },
@@ -107,11 +82,15 @@ const Attendance = () => {
     { label: "Bulan Ini", value: "month" },
   ]
 
-  // Get unique departments from attendance data
-  const uniqueDepartments = [...new Set(attendanceData.map((a) => a.department))].filter(Boolean)
+  // Prepare department options from departments data
   const departmentOptions = [
     { label: "Semua Departemen", value: "all" },
-    ...uniqueDepartments.map((dept) => ({ label: dept, value: dept })),
+    ...(departments && Array.isArray(departments)
+      ? departments.map((dept) => ({
+          label: dept.name || dept.division,
+          value: dept.name || dept.division,
+        }))
+      : []),
   ]
 
   const statusOptions = [
@@ -124,12 +103,12 @@ const Attendance = () => {
   ]
 
   const filteredData = attendanceData.filter((attendance) => {
-    const matchSearch = attendance.name
+    const matchSearch = (attendance.name || "")
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
     const matchDepartment =
-      departmentFilter === "all" || attendance.department === departmentFilter
-    const matchStatus = statusFilter === "all" || attendance.status === statusFilter
+      departmentFilter === "all" || (attendance.department === departmentFilter)
+    const matchStatus = statusFilter === "all" || (attendance.status === statusFilter)
 
     return matchSearch && matchDepartment && matchStatus
   })
@@ -161,24 +140,34 @@ const Attendance = () => {
     { header: "Departemen", accessor: "department" },
     {
       header: "Check In",
-      accessor: "checkIn",
+      accessor: "check_in_time",
       render: (row) => (
         <div className="flex items-center gap-2">
           <Clock size={14} className="text-slate-400" />
-          <span className={row.checkIn === "-" ? "text-slate-400" : "font-medium"}>
-            {row.checkIn}
+          <span className={!row.check_in_time ? "text-slate-400" : "font-medium"}>
+            {row.check_in_time
+              ? new Date(row.check_in_time).toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-"}
           </span>
         </div>
       ),
     },
     {
       header: "Check Out",
-      accessor: "checkOut",
+      accessor: "check_out_time",
       render: (row) => (
         <div className="flex items-center gap-2">
           <Clock size={14} className="text-slate-400" />
-          <span className={row.checkOut === "-" ? "text-slate-400" : "font-medium"}>
-            {row.checkOut}
+          <span className={!row.check_out_time ? "text-slate-400" : "font-medium"}>
+            {row.check_out_time
+              ? new Date(row.check_out_time).toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-"}
           </span>
         </div>
       ),
