@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ShieldCheck } from "lucide-react";
+import { Plus, Trash2, Leaf } from "lucide-react";
 import {
   Button,
   Badge,
@@ -45,8 +45,11 @@ const RoleManagement = () => {
         const formatted = response.data.map((item) => ({
           id: item.id,
           role: item.role,
+          count : item.count,
+          created_at : item.created_at,
+          deleted_at: item.deleted_at?.Time || null,
           description: item.description,
-          status: item.deleted_at ? "Tidak Aktif" : "Aktif",
+          status: item.deleted_at.Valid ? "Tidak Aktif" : "Aktif",
         }));
 
         setRoles(formatted);
@@ -83,8 +86,23 @@ const RoleManagement = () => {
 
   // ================= TABLE =================
   const columns = [
-    { header: "Nama Role", accessor: "role" },
+    { header: "Role", accessor: "role" },
     { header: "Deskripsi", accessor: "description" },
+    { header: "Jumlah", accessor: "count" },
+    {
+      header: "Tanggal",
+      accessor: "created_at",
+      render: (row) => {
+        const dateToShow = row.status === "Tidak Aktif" ? row.deleted_at : row.created_at;
+        return dateToShow
+          ? new Date(dateToShow).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+          : "-";
+      },
+    },
     {
       header: "Status",
       accessor: "status",
@@ -124,6 +142,8 @@ const RoleManagement = () => {
         const newRole = {
           id: response.data.id,
           role: response.data.role,
+          count :response.data.count,
+          created_at :response.data.created_at,
           description: response.data.description,
           status: "Aktif",
         };
@@ -168,14 +188,28 @@ const RoleManagement = () => {
 
     try {
       setLoading(true);
+      
+      // Optimistic update - instant UI response
+      setRoles((prev) => 
+        prev.map((r) => 
+          r.id === id ? { ...r, status: "Aktif" } : r
+        )
+      );
+
       const response = await ActiveRole(id);
 
       if (response.success) {
+        // Fetch ulang untuk consistency dengan server
         await fetchRoles();
         alert("Role berhasil diaktifkan");
+      } else {
+        // Revert jika error
+        await fetchRoles();
       }
     } catch (err) {
       console.log(err);
+      // Revert state on error
+      await fetchRoles();
       alert("Gagal aktivasi role");
     } finally {
       setLoading(false);
@@ -224,21 +258,18 @@ const RoleManagement = () => {
               variant="ghost"
               size="sm"
               icon={Trash2}
+              title="Hapus"
               className="text-red-500"
-              onClick={() => handleDeleteRole(row.id)}
-            >
-              Hapus
-            </Button>
+              onClick={() => handleDeleteRole(row.id)}  />
+             
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              icon={ShieldCheck}
+              icon={Leaf}
+              title="Aktifkan"
               className="text-green-600"
-              onClick={() => handleActivateRole(row.id)}
-            >
-              Aktifkan
-            </Button>
+              onClick={() => handleActivateRole(row.id)} />
           )
         }
         emptyMessage="Tidak ada role"
